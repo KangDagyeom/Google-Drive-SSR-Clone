@@ -8,24 +8,91 @@ routes.get('/register', (req, res) => {
 });
 
 routes.post('/register', async (req, res) => {
+    const { username, email } = req.body;
+
+    // Xác thực dữ liệu đầu vào
     const schema = Joi.object({
         username: Joi.string().required(),
         email: Joi.string().email({ tlds: { allow: false } }).required(),
         password: Joi.string().required(),
-
     });
+
     const { error } = schema.validate(req.body);
     if (error) {
         return res.status(400).send(error.details[0].message);
     }
+
     try {
+
+        const existingUser = await userModel.findOne({
+            $or: [{ username: username }, { email: email }]
+        });
+
+        if (existingUser) {
+            if (existingUser.email === email) {
+                return res.status(400).send('User email already exists');
+            } else if (existingUser.username === username) {
+                return res.status(400).send('Username already exists');
+            }
+        }
+
+
         const user = await userModel.create(req.body);
         console.log(req.body);
-        res.send('Data received');
+        res.status(200).send('User created');
     } catch (error) {
         console.log(error);
-        res.send('An error occured');
+        res.status(500).send('An error occurred');
     }
 });
 
+routes.put('/update-user/:id', async (req, res) => {
+    const schema = Joi.object({
+        username: Joi.string().required(),
+        email: Joi.string().email({ tlds: { allow: false } }).required(),
+        password: Joi.string().min(6).required(),
+    });
+
+    const { error } = schema.validate(req.body);
+
+    if (error) {
+        return res.status(400).send(error.details[0].message);
+    }
+
+    try {
+        const user = await userModel.findByIdAndUpdate(req.params.id, req.body);
+        console.log(req.body);
+        res.send('Data updated');
+    } catch (error) {
+        console.log(error);
+        res.send('An error occured');
+
+    }
+});
+routes.delete('/delete-user/:id', async (req, res) => {
+    try {
+        const user = await userModel.findByIdAndDelete(req.params.id);
+        if (!user) {
+            return res.status(404).send('User not found');
+        }
+        res.send('User deleted');
+    } catch (error) {
+        console.log(error);
+        res.send('An error occurred');
+    } finally {
+        console.log('Delete user request processed');
+    }
+});
+routes.get('/get-users', async (req, res) => {
+    try {
+        const user = await userModel.find({});
+        res.send(user);
+    } catch (error) {
+        console.log(error);
+        res.send('An error occurred');
+    }
+    finally {
+        console.log('Get users request processed');
+    }
+})
 module.exports = routes;
