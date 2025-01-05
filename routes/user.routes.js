@@ -1,15 +1,21 @@
 const express = require('express');
 const routes = express.Router();
-const userModel = require('../models/User');
+const userModel = require('../models/user.model');
 const Joi = require('joi');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+
+
+dotenv.config();
 
 routes.get('/register', (req, res) => {
     res.render('register');
 });
 
 routes.post('/register', async (req, res) => {
-    const { username, email } = req.body;
-
+    const { username, email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
     // Xác thực dữ liệu đầu vào
     const schema = Joi.object({
         username: Joi.string().required(),
@@ -37,7 +43,11 @@ routes.post('/register', async (req, res) => {
         }
 
 
-        const user = await userModel.create(req.body);
+        const user = await userModel.create({
+            username,
+            email,
+            password: hashedPassword
+        });
         console.log(req.body);
         res.status(200).send('User created');
     } catch (error) {
@@ -94,5 +104,54 @@ routes.get('/get-users', async (req, res) => {
     finally {
         console.log('Get users request processed');
     }
-})
+});
+
+routes.get('/login', (req, res) => {
+    res.render('login');
+});
+
+routes.post('/login', async (req, res) => {
+    const schema = Joi.object({
+        username: Joi.string().optional(),
+        password: Joi.string().min(5).required(),
+    });
+
+    const { error } = schema.validate(req.body);
+
+    if (error) {
+        return res.status(400).send(error.details[0].message);
+    }
+
+    const { username, password } = req.body;
+
+    try {
+        // Tìm người dùng bằng username hoặc email
+        const user = await userModel.findOne({
+            username: username,
+        });
+
+        if (!user) {
+            return res.status(400).send('Invalid credentials');
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(400).send('Invalid credentials');
+        }
+
+        const token = jwt.sign({
+            userid: user._id,
+            email: user.email,
+            username: user.username
+        }, process.env.JWT_SECRET);
+
+        res.cookie('token', token);
+        res.send('Logged in');
+    } catch (error) {
+        console.log(error);
+        res.status(500).send('An error occurred');
+    }
+});
+
 module.exports = routes;
