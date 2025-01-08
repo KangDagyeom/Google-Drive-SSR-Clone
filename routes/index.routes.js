@@ -33,7 +33,7 @@ router.post('/upload-file', authMiddleware, upload.single('file'), async (req, r
 
     try {
         const { data, error } = await supabase.storage
-            .from('test') 
+            .from('test')
             .upload(`uploads/${file.originalname}`, file.buffer, {
                 cacheControl: '3600',
                 upsert: false
@@ -61,4 +61,35 @@ router.post('/upload-file', authMiddleware, upload.single('file'), async (req, r
     }
 });
 
+router.get('/download/:path(*)', authMiddleware, async (req, res) => {
+    const { path } = req.params;
+    console.log('Download path:', path);
+
+    try {
+        const { data, error } = await supabase
+            .storage
+            .from('test')
+            .download(path);
+
+        if (error) {
+            console.error('Error downloading file from Supabase:', error);
+            return res.status(500).send('An error occurred while downloading the file from Supabase.');
+        }
+
+        if (!data) {
+            console.error('No data returned from Supabase');
+            return res.status(500).send('No data returned from Supabase.');
+        }
+
+        const buffer = await data.arrayBuffer();
+        const fileName = path.split('/').pop();
+
+        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.send(Buffer.from(buffer));
+    } catch (error) {
+        console.error('Error occurred while downloading the file:', error);
+        res.status(500).send('An error occurred while downloading the file.');
+    }
+});
 module.exports = router;

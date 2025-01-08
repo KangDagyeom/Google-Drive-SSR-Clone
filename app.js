@@ -8,6 +8,7 @@ const userRoutes = require('./routes/user.routes');
 const cookieParser = require('cookie-parser');
 const indexRoutes = require('./routes/index.routes');
 
+
 app.use(morgan('dev'));
 app.set('view engine', 'ejs');
 app.use(express.json());
