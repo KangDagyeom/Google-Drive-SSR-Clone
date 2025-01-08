@@ -92,4 +92,88 @@ router.get('/download/:path(*)', authMiddleware, async (req, res) => {
         res.status(500).send('An error occurred while downloading the file.');
     }
 });
+
+router.get('/list-files', authMiddleware, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .storage
+            .from('test')
+            .list('uploads', {
+                limit: 100,
+                offset: 0,
+                sortBy: { column: 'name', order: 'asc' },
+            })
+
+        if (error) {
+            console.error('Error listing files from Supabase:', error);
+            return res.status(500).send('An error occurred while listing files from Supabase.');
+        }
+
+        res.json(data);
+
+    } catch (error) {
+        console.error('Error occurred while listing files:', error);
+        res.status(500).send('An error occurred while listing files.');
+    }
+});
+
+router.get('/get-file/:name', authMiddleware, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .storage
+            .from('test')
+            .list('uploads', {
+                limit: 100,
+                offset: 0,
+                sortBy: { column: 'name', order: 'asc' },
+                search: req.params.name
+            })
+        if (error) {
+            console.error('Error listing files from Supabase:', error);
+            return res.status(500).send('An error occurred while listing files from Supabase.');
+        }
+        res.json(data);
+    } catch (error) {
+        console.error('Error occurred while listing files:', error);
+        res.status(500).send('An error occurred while listing files.');
+    }
+});
+
+router.delete('/delete-file/:path(*)', authMiddleware, async (req, res) => {
+    const { path: filePath } = req.params;
+    try {
+        const { data, error } = await supabase
+            .storage
+            .from('test')
+            .remove([filePath]);
+        if (error) {
+            console.error('Error deleting file from Supabase:', error);
+            return res.status(500).send('An error occurred while deleting file from Supabase.');
+        }
+        const file = await fileModel.findOneAndDelete({ path: filePath });
+        console.log('File deleted from MongoDB:', file);
+        console.log('Object data: ', data);
+        res.status(200).send('File deleted successfully.');
+    } catch (error) {
+        console.error('Error occurred while deleting file:', error);
+        res.status(500).send('An error occurred while deleting file.');
+    }
+});
+
+router.get('/buckets-list', authMiddleware, async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .storage
+            .listBuckets()
+
+        if (error) {
+            console.error('Error listing buckets from Supabase:', error);
+            return res.status(500).send('An error occurred while listing buckets from Supabase.');
+        }
+        res.json(data);
+    } catch (error) {
+        console.error('Error occurred while listing buckets:', error);
+        res.status(500).send('An error occurred while listing buckets.');
+    }
+});
 module.exports = router;
